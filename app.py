@@ -125,7 +125,8 @@ def procesar_datos(file_u297, file_u307, file_rpt, file_ventas):
     df_lineas = df_lineas.sort_values(by=['VIN', 'F.cierre'], ascending=[True, True])
     df_servicios_extra = df_lineas.groupby('VIN').agg(
         Tipos_Servicio=('DESCRIPCION TIPO MO', lambda x: ', '.join(x.dropna().astype(str).unique())),
-        Ultimo_Tipo_Servicio=('DESCRIPCION TIPO MO', 'last')
+        Ultimo_Tipo_Servicio=('DESCRIPCION TIPO MO', 'last'),
+        Asesor_Ultimo_Servicio=('Asesor', 'last')  # <-- AGREGADO: Extrae el asesor de la visita más reciente
     ).reset_index()
 
     df_srv_grouped = df_ordenes.groupby('VIN').agg(
@@ -167,7 +168,7 @@ def procesar_datos(file_u297, file_u307, file_rpt, file_ventas):
         hist_vins['Origen_Venta_TDM'] = np.nan
 
     condiciones_venta = [
-        hist_vins['Vendido_En_Quiter'] == True,                                           
+        hist_vins['Vendido_En_Quiter'] == True,                                            
         hist_vins['Origen_Venta_TDM'].str.contains('DISTRIBUIDOR', case=False, na=False)  
     ]
     opciones_venta = ['VENDIDO AQUÍ', 'VENDIDO AQUÍ']
@@ -179,6 +180,7 @@ def procesar_datos(file_u297, file_u307, file_rpt, file_ventas):
     hist_vins['Km_Actual'] = pd.to_numeric(hist_vins['Km_Actual'], errors='coerce').fillna(0)
     hist_vins['Km_Primer_Servicio'] = pd.to_numeric(hist_vins['Km_Primer_Servicio'], errors='coerce').fillna(0)
     hist_vins['Ultimo_Tipo_Servicio'] = hist_vins['Ultimo_Tipo_Servicio'].fillna('SIN REGISTRO EN TALLER')
+    hist_vins['Asesor_Ultimo_Servicio'] = hist_vins['Asesor_Ultimo_Servicio'].fillna('SIN REGISTRO U297')  # <-- AGREGADO: Manejo de nulos
     hist_vins['Tipos_Servicio'] = hist_vins['Tipos_Servicio'].fillna('N/D')
 
     def alerta_tdm(r):
@@ -241,8 +243,8 @@ def procesar_datos(file_u297, file_u307, file_rpt, file_ventas):
         'Estado_Venta', 'Clasificacion_CRT', 'Status_Retencion', 'Alerta_Churn', 'Indice_Riesgo_Churn_%',
         'LTV_Monto_Total', 'Dias_Sin_Venir', 'Meses_Sin_Venir', 'DERT_Dias_Promedio', 'Meses_Entre_Servicios_Promedio',
         'Km_Primer_Servicio', 'Km_Actual', 'CERT_Km_Proyectado_Hoy',
-        'Fecha_Venta', 'Primera_Visita', 'Ultima_Visita', 'Ultimo_Tipo_Servicio', 'Total_Visitas', 'Tipos_Servicio'
-    ]
+        'Fecha_Venta', 'Primera_Visita', 'Ultima_Visita', 'Ultimo_Tipo_Servicio', 'Asesor_Ultimo_Servicio', 'Total_Visitas', 'Tipos_Servicio'
+    ]  # <-- AGREGADO: 'Asesor_Ultimo_Servicio' posicionado antes de 'Total_Visitas'
     df_bdc = hist_vins[cols_fin].copy().fillna('N/D')
 
     df_lineas['F.cierre'] = df_lineas['F.cierre'].dt.strftime('%Y-%m-%d %H:%M:%S')
@@ -264,6 +266,7 @@ def procesar_datos(file_u297, file_u307, file_rpt, file_ventas):
         ws_bdc.column_dimensions['D'].width = 45  
         ws_bdc.column_dimensions['E'].width = 38  
         ws_bdc.column_dimensions['G'].width = 48  
+        ws_bdc.column_dimensions['W'].width = 30  # <-- AGREGADO: Ancho de columna para el Asesor
         ws_bdc.column_dimensions['X'].width = 60  
 
     return output.getvalue()
